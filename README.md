@@ -5,6 +5,16 @@ openssl/keytool self-signed pki repository tool
 1. Create your HOSTS file
 
     cat>HOSTS<<'EOF'
+<<<<<<< HEAD
+    &#35; jetty jboss tomcat
+    type=jks    host=fu1     prefix=
+    type=jks    host=fu2     prefix=
+    type=jks    host=fu3     prefix=
+    &#35; postgres
+    type=crt    host=fu1     prefix=pg
+    type=crt    host=fu2     prefix=pg
+    &#35; dovecot
+=======
     # jetty jboss tomcat
     type=jks    host=fu1     prefix=
     type=jks    host=fu2     prefix=
@@ -13,6 +23,7 @@ openssl/keytool self-signed pki repository tool
     type=crt    host=fu1     prefix=pg
     type=crt    host=fu2     prefix=pg
     # dovecot
+>>>>>>> 625a808c04d1f498b237d320a1c481ea025f1b8f
     type=cat    host=fu3     prefix=dc
     EOF
 
