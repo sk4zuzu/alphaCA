@@ -165,9 +165,9 @@ create_root_crt() {
 
 process_all() {
     create_root_crt
-
-    sed 's%type[= ]*\([^ ]*\)[ ]*host[= ]*\([^ ]*\)[ ]*prefix[= ]*\([^ ]*\)%"\1" "\2" "\3"%' HOSTS\
-        |xargs -d'\n' -L1 -n1 -P1 -i{} sh -c 'create {}'
+    sed -e'/^\s*#/d' -e's/#[^#]*$//' HOSTS\
+        |sed 's%type[= ]*\([^ ]*\)[ ]*host[= ]*\([^ ]*\)[ ]*prefix[= ]*\([^ ]*\)%"\1" "\2" "\3"%'\
+            |xargs -d'\n' -L1 -n1 -P1 -i{} sh -c 'create {}'
 }
 
 
