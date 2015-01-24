@@ -1,0 +1,10 @@
+*.cnf
+HOSTS
+alphaCA/
+*.key
+*.req
+*.crt
+*.crl
+*.cat
+*.p12
+*.jks

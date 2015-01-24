@@ -1,0 +1,257 @@
+#!/bin/bash
+#
+# alphaCA 0.1 20150124 copyright sk4zuzu@gmail.com 2015
+#
+# This file is part of alphaCA.
+#
+# alphaCA is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# alphaCA is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with alphaCA.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+#set -x
+
+if [ ! -f 'HOSTS' ]; then 
+
+cat>HOSTS<<'EOF'
+# jetty jboss tomcat
+type=jks    host=fu1     prefix=
+type=jks    host=fu2     prefix=
+type=jks    host=fu3     prefix=
+# postgres
+type=crt    host=fu1     prefix=pg
+type=crt    host=fu2     prefix=pg
+# dovecot
+type=cat    host=fu3     prefix=dc
+EOF
+
+fi
+
+create_crt() {
+    local _host="$2";local _prefix="$3"
+
+    if [ -z "$_prefix" ]; then
+        local _name="$_host"
+    else
+        local _name="$_prefix"-"$_host"
+    fi
+
+    if [ ! -f "$_name".key ] || [ ! -f "$_name".req ]; then
+        echo "$_host" \
+            |openssl req -config openssl.cnf -nodes -newkey rsa:2048 -keyout "$_name".key -out "$_name".req
+    fi
+
+    if [ ! -f "$_name".crt ]; then
+        echo -ne "y\ny\n" \
+            |openssl ca -config openssl.cnf -notext -out "$_name".crt -infiles "$_name".req
+    fi
+}
+
+
+create_cat() {
+    local _host="$2";local _prefix="$3"
+
+    create_crt 'crt' $_host $_prefix
+
+    if [ -z "$_prefix" ]; then
+        local _name="$_host"
+    else
+        local _name="$_prefix"-"$_host"
+    fi
+
+    if [ ! -f "$_name".crt.cat ] && [ -f "$_name".crt ]; then
+        cat alphaCA.crt "$_name".crt > "$_name".crt.cat
+    fi
+}
+
+
+create_jks() {
+    local _host="$2";local _prefix="$3"
+
+    create_crt 'crt' $_host $_prefix
+
+    if [ -z "$_prefix" ]; then
+        local _name="$_host"
+    else
+        local _name="$_prefix"-"$_host"
+    fi
+
+    if [ ! -f "$_name".p12 ]; then
+        openssl pkcs12 -export -in "$_name".crt -inkey "$_name".key \
+                       -out "$_name".p12 -name "$_name" \
+                       -CAfile alphaCA.crt -password pass:alphaCA
+    fi
+
+    if [ ! -f "$_name".jks ]; then
+        keytool -importkeystore \
+            -deststorepass alphaCA -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -alias "$_name"
+
+        keytool -importkeystore \
+            -deststorepass alphaCA -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -srcalias "$_name" -destalias jetty
+
+        keytool -importkeystore \
+            -deststorepass alphaCA -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -srcalias "$_name" -destalias jboss
+
+        keytool -importkeystore \
+            -deststorepass alphaCA -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -srcalias "$_name" -destalias tomcat
+
+        echo yes|keytool -keystore "$_name".jks -storepass alphaCA \
+                         -importcert -alias alphaca -file alphaCA.crt
+    fi
+
+    create_crt 'crt' "$_host"-clnt $_prefix
+
+    if [ ! -f "$_name"-clnt.p12 ]; then
+        openssl pkcs12 -export -in "$_name"-clnt.crt -inkey "$_name"-clnt.key \
+                       -out "$_name"-clnt.p12 -name "$_name"-clnt \
+                       -CAfile alphaCA.crt -password pass:alphaCA \
+                       -certfile alphaCA.crt
+    fi
+
+    if [ ! -f "$_name"-clnt.jks ]; then
+        keytool -importkeystore \
+            -deststorepass alphaCA -destkeystore "$_name"-clnt.jks \
+            -srckeystore "$_name"-clnt.p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -alias "$_name"-clnt
+
+        echo yes|keytool -keystore "$_name"-clnt.jks -storepass alphaCA \
+                         -importcert -alias alphaca -file alphaCA.crt
+    fi
+}
+
+
+create() {
+    case $1 in
+        'crt') create_crt $* ;;
+        'cat') create_cat $* ;;
+        'jks') create_jks $* ;;
+            *) echo 'possible types: crt, cat, jks' ;;
+    esac
+}
+
+
+export -f create_crt create_cat create_jks create
+
+
+create_root_crt() {
+    if [ ! -f alphaCA.key ] || [ ! -f alphaCA.crt ]; then
+        openssl genrsa -out alphaCA.key 2048
+        echo 'alphaCA'\
+            |openssl req -new -x509 -days 4096 -key alphaCA.key -out alphaCA.crt -config openssl.cnf
+    fi
+
+    if [ ! -f alphaCA.crl ]; then
+        openssl ca -config openssl.cnf -keyfile alphaCA.key -cert alphaCA.crt -gencrl -out alphaCA.crl
+    fi
+}
+
+
+process_all() {
+    create_root_crt
+
+    sed 's%type[= ]*\([^ ]*\)[ ]*host[= ]*\([^ ]*\)[ ]*prefix[= ]*\([^ ]*\)%"\1" "\2" "\3"%' HOSTS\
+        |xargs -d'\n' -L1 -n1 -P1 -i{} sh -c 'create {}'
+}
+
+
+if [ ! -d alphaCA/ ]; then
+    mkdir -p alphaCA/ca.db.certs
+    touch    alphaCA/ca.db.index
+    echo 01 >alphaCA/ca.db.serial
+fi
+
+
+if [ ! -f openssl.cnf ]; then
+
+cat>openssl.cnf<<'EOF'
+[ ca ]
+default_ca = ca_default
+
+[ ca_default ]
+dir = alphaCA
+certs = $dir
+new_certs_dir = $dir/ca.db.certs
+database = $dir/ca.db.index
+serial = $dir/ca.db.serial
+RANDFILE = $dir/ca.db.rand
+certificate = alphaCA.crt
+private_key = alphaCA.key
+default_days = 1024
+default_crl_days = 30
+default_md = sha1
+preserve = no
+policy = generic_policy
+unique_subject = no
+
+[ generic_policy ]
+countryName = optional
+stateOrProvinceName = optional
+localityName = optional
+organizationName = optional
+organizationalUnitName = optional
+commonName = supplied
+emailAddress = optional
+
+[ req ]
+default_bits = 2048
+attributes = req_attributes
+distinguished_name = req_distinguished_name
+x509_extensions = v3_ca
+string_mask = nombstr
+
+[ req_attributes ]
+challengePassword_min = 0
+challengePassword_max = 20
+
+[ req_distinguished_name ]
+commonName     = Common Name (eg, YOUR name)
+commonName_max = 64
+
+[ v3_ca ]
+basicConstraints = CA:true
+EOF
+
+fi
+
+
+clean() {
+    if [ -f alphaCA.sh ]; then
+        rm -rf alphaCA/
+        rm -f *.key *.req *.crt *.crl *.cat *.p12 *.jks
+    fi
+}
+
+
+distclean() {
+    clean
+    if [ -f alphaCA.sh ]; then
+        rm -f *.cnf HOSTS
+    fi
+}
+
+
+case $1 in
+    'clean')     clean       ;;
+    'distclean') distclean   ;;
+              *) process_all ;;
+esac
+
+
+# vim:ts=4:sw=4:et:
