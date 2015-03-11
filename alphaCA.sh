@@ -18,7 +18,11 @@
 # along with alphaCA.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-#set -x
+set -x
+
+
+export PASS='alphaCA'
+
 
 if [ ! -f 'HOSTS' ]; then 
 
@@ -35,6 +39,7 @@ type=cat    host=fu3     prefix=dc
 EOF
 
 fi
+
 
 create_crt() {
     local _host="$2";local _prefix="$3"
@@ -88,31 +93,31 @@ create_jks() {
     if [ ! -f "$_name".p12 ]; then
         openssl pkcs12 -export -in "$_name".crt -inkey "$_name".key \
                        -out "$_name".p12 -name "$_name" \
-                       -CAfile alphaCA.crt -password pass:alphaCA
+                       -CAfile alphaCA.crt -password "pass:$PASS"
     fi
 
     if [ ! -f "$_name".jks ]; then
         keytool -importkeystore \
-            -deststorepass alphaCA -destkeystore "$_name".jks \
-            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -deststorepass "$PASS" -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass "$PASS" \
             -alias "$_name"
 
         keytool -importkeystore \
-            -deststorepass alphaCA -destkeystore "$_name".jks \
-            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -deststorepass "$PASS" -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass "$PASS" \
             -srcalias "$_name" -destalias jetty
 
         keytool -importkeystore \
-            -deststorepass alphaCA -destkeystore "$_name".jks \
-            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -deststorepass "$PASS" -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass "$PASS" \
             -srcalias "$_name" -destalias jboss
 
         keytool -importkeystore \
-            -deststorepass alphaCA -destkeystore "$_name".jks \
-            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -deststorepass "$PASS" -destkeystore "$_name".jks \
+            -srckeystore "$_name".p12 -srcstoretype PKCS12 -srcstorepass "$PASS" \
             -srcalias "$_name" -destalias tomcat
 
-        echo yes|keytool -keystore "$_name".jks -storepass alphaCA \
+        echo yes|keytool -keystore "$_name".jks -storepass "$PASS" \
                          -importcert -alias alphaca -file alphaCA.crt
     fi
 
@@ -121,17 +126,17 @@ create_jks() {
     if [ ! -f "$_name"-clnt.p12 ]; then
         openssl pkcs12 -export -in "$_name"-clnt.crt -inkey "$_name"-clnt.key \
                        -out "$_name"-clnt.p12 -name "$_name"-clnt \
-                       -CAfile alphaCA.crt -password pass:alphaCA \
+                       -CAfile alphaCA.crt -password "pass:$PASS" \
                        -certfile alphaCA.crt
     fi
 
     if [ ! -f "$_name"-clnt.jks ]; then
         keytool -importkeystore \
-            -deststorepass alphaCA -destkeystore "$_name"-clnt.jks \
-            -srckeystore "$_name"-clnt.p12 -srcstoretype PKCS12 -srcstorepass alphaCA \
+            -deststorepass "$PASS" -destkeystore "$_name"-clnt.jks \
+            -srckeystore "$_name"-clnt.p12 -srcstoretype PKCS12 -srcstorepass "$PASS" \
             -alias "$_name"-clnt
 
-        echo yes|keytool -keystore "$_name"-clnt.jks -storepass alphaCA \
+        echo yes|keytool -keystore "$_name"-clnt.jks -storepass "$PASS" \
                          -importcert -alias alphaca -file alphaCA.crt
     fi
 }
