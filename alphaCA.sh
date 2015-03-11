@@ -121,24 +121,24 @@ create_jks() {
                          -importcert -alias alphaca -file alphaCA.crt
     fi
 
-    create_crt 'crt' "$_host"-clnt $_prefix
+#    create_crt 'crt' "$_host"-clnt $_prefix
 
-    if [ ! -f "$_name"-clnt.p12 ]; then
-        openssl pkcs12 -export -in "$_name"-clnt.crt -inkey "$_name"-clnt.key \
-                       -out "$_name"-clnt.p12 -name "$_name"-clnt \
-                       -CAfile alphaCA.crt -password "pass:$PASS" \
-                       -certfile alphaCA.crt
-    fi
+#    if [ ! -f "$_name"-clnt.p12 ]; then
+#        openssl pkcs12 -export -in "$_name"-clnt.crt -inkey "$_name"-clnt.key \
+#                       -out "$_name"-clnt.p12 -name "$_name"-clnt \
+#                       -CAfile alphaCA.crt -password "pass:$PASS" \
+#                       -certfile alphaCA.crt
+#    fi
 
-    if [ ! -f "$_name"-clnt.jks ]; then
-        keytool -importkeystore \
-            -deststorepass "$PASS" -destkeystore "$_name"-clnt.jks \
-            -srckeystore "$_name"-clnt.p12 -srcstoretype PKCS12 -srcstorepass "$PASS" \
-            -alias "$_name"-clnt
-
-        echo yes|keytool -keystore "$_name"-clnt.jks -storepass "$PASS" \
-                         -importcert -alias alphaca -file alphaCA.crt
-    fi
+#    if [ ! -f "$_name"-clnt.jks ]; then
+#        keytool -importkeystore \
+#            -deststorepass "$PASS" -destkeystore "$_name"-clnt.jks \
+#            -srckeystore "$_name"-clnt.p12 -srcstoretype PKCS12 -srcstorepass "$PASS" \
+#            -alias "$_name"-clnt
+#
+#        echo yes|keytool -keystore "$_name"-clnt.jks -storepass "$PASS" \
+#                         -importcert -alias alphaca -file alphaCA.crt
+#    fi
 }
 
 
