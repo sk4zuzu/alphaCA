@@ -1,6 +1,6 @@
 *.cnf
 HOSTS
-alphaCA/
+alphaCA.db/
 *.key
 *.req
 *.crt

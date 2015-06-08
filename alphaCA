@@ -18,7 +18,7 @@
 # along with alphaCA.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-set -x
+#set -x
 
 
 export PASS='alphaCA'
@@ -152,9 +152,6 @@ create() {
 }
 
 
-export -f create_crt create_cat create_jks create
-
-
 create_root_crt() {
     if [ ! -f alphaCA.key ] || [ ! -f alphaCA.crt ]; then
         openssl genrsa -out alphaCA.key 2048
@@ -170,16 +167,20 @@ create_root_crt() {
 
 process_all() {
     create_root_crt
-    sed -e'/^\s*#/d' -e's/#[^#]*$//' HOSTS\
-        |sed 's%type[= ]*\([^ ]*\)[ ]*host[= ]*\([^ ]*\)[ ]*prefix[= ]*\([^ ]*\)%"\1" "\2" "\3"%'\
-            |xargs -d'\n' -L1 -n1 -P1 -i{} sh -c 'create {}'
+
+    CMDS=`sed -e'/^\s*#/d' -e's/#[^#]*$//' HOSTS \
+         |sed 's%type[= ]*\([^ ]*\)[ ]*host[= ]*\([^ ]*\)[ ]*prefix[= ]*\([^ ]*\)%create@+@"\1"@+@"\2"@+@"\3"%'`
+
+    for CMD in $CMDS; do
+        eval `echo $CMD|sed 's/@[+]@/ /g'`
+    done
 }
 
 
-if [ ! -d alphaCA/ ]; then
-    mkdir -p alphaCA/ca.db.certs
-    touch    alphaCA/ca.db.index
-    echo 01 >alphaCA/ca.db.serial
+if [ ! -d alphaCA.db/ ]; then
+    mkdir -p alphaCA.db/ca.db.certs
+    touch    alphaCA.db/ca.db.index
+    echo 01 >alphaCA.db/ca.db.serial
 fi
 
 
@@ -190,7 +191,7 @@ cat>openssl.cnf<<'EOF'
 default_ca = ca_default
 
 [ ca_default ]
-dir = alphaCA
+dir = alphaCA.db
 certs = $dir
 new_certs_dir = $dir/ca.db.certs
 database = $dir/ca.db.index
@@ -237,8 +238,8 @@ fi
 
 
 clean() {
-    if [ -f alphaCA.sh ]; then
-        rm -rf alphaCA/
+    if [ -f alphaCA ]; then
+        rm -rf alphaCA.db/
         rm -f *.key *.req *.crt *.crl *.cat *.p12 *.jks
     fi
 }
@@ -246,15 +247,16 @@ clean() {
 
 distclean() {
     clean
-    if [ -f alphaCA.sh ]; then
+    if [ -f alphaCA ]; then
         rm -f *.cnf HOSTS
     fi
 }
 
 
 case $1 in
-    'clean')     clean       ;;
+        'clean')     clean   ;;
     'distclean') distclean   ;;
+         'init')             ;;
               *) process_all ;;
 esac
 
