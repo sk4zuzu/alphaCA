@@ -19,7 +19,7 @@ Openssl/keytool self-signed pki repository halper.
 
 2. Generate all the good stuff
 
-        ./alphaCA.sh
+        ./alphaCA
 
 3. Appreciate what happened
 
@@ -27,7 +27,7 @@ Openssl/keytool self-signed pki repository halper.
 
 4. Clean up (leaves HOSTS and *.cnf untouched)
 
-        ./alphaCA.sh clean
+        ./alphaCA clean
 
 5. Do not forget your past
 
@@ -35,7 +35,7 @@ Openssl/keytool self-signed pki repository halper.
 
 6. Clean up even more
 
-        ./alphaCA.sh distclean
+        ./alphaCA distclean
 
 7. Confront the emptiness of the Void
 
